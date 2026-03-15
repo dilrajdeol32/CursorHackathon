@@ -20,6 +20,11 @@ export async function authMiddleware(
     return;
   }
 
+  if (!supabase) {
+    res.status(503).json({ error: "Supabase not configured" });
+    return;
+  }
+
   const {
     data: { user },
     error,
