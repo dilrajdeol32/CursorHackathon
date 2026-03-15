@@ -21,6 +21,11 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  if (!supabase) {
+    res.status(503).json({ error: "Supabase not configured" });
+    return;
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email: String(email).trim(),
     password: String(password),

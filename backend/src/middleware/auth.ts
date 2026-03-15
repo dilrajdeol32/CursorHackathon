@@ -2,14 +2,19 @@ import { Request, Response, NextFunction } from "express";
 import { supabase } from "../lib/supabase.js";
 
 /**
- * Auth middleware: validates Bearer token (Supabase access_token) and attaches user to req.
- * Use on routes that require nurse login.
+ * Auth middleware: validates Bearer token via Supabase when available.
+ * Falls back to demo mode (no auth required) when Supabase is not configured.
  */
 export async function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  if (!supabase) {
+    next();
+    return;
+  }
+
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith("Bearer ")
     ? authHeader.slice(7)

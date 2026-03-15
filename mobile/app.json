@@ -28,7 +28,21 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Checkpoint to access your microphone for voice recordings."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Checkpoint to access your camera to scan patient wristband QR codes.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ]
     ]
   }
 }

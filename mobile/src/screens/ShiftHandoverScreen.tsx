@@ -1,32 +1,24 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { ExpandableCard } from "../components/ExpandableCard";
+import { generateHandover, HandoverPatient } from "../api/client";
 import { colors, radius } from "../theme";
 
-const handoverPatients = [
+const fallbackPatients: HandoverPatient[] = [
   {
-    name: "Mr. Patel", room: "Room 204", unresolvedCheckpoints: 1,
-    incompleteTasks: "Metoprolol administration interrupted",
-    medicationEvents: "Metoprolol 25mg pending",
-    notes: "Mild dizziness reported. Monitor BP.",
-    aiSummary: "Patient had one interrupted medication event. Metoprolol 25mg was not administered due to bed alarm interruption. Recommend re-verification before continuing. BP slightly elevated.",
+    patient_id: "1", patient_name: "Mr. Patel", room: "204", checkpoint_count: 1, high_risk_count: 0,
+    summary: "Patient had one interrupted medication event. Metoprolol 25mg was not administered due to bed alarm interruption. Recommend re-verification before continuing. BP slightly elevated.",
   },
   {
-    name: "Mr. Garcia", room: "Room 211", unresolvedCheckpoints: 2,
-    incompleteTasks: "Wound dressing change interrupted",
-    medicationEvents: "Cefazolin 1g IV given at 06:00",
-    notes: "Elevated temp 37.8°C. Wound culture pending.",
-    aiSummary: "High-risk patient with two unresolved checkpoints. Wound dressing was interrupted by Code Blue. Temperature trending up, possible surgical site infection. Cefazolin on schedule. Prioritize wound assessment.",
+    patient_id: "3", patient_name: "Mr. Garcia", room: "211", checkpoint_count: 2, high_risk_count: 1,
+    summary: "High-risk patient with two unresolved checkpoints. Wound dressing was interrupted by Code Blue. Temperature trending up, possible surgical site infection. Cefazolin on schedule. Prioritize wound assessment.",
   },
   {
-    name: "Mr. Thompson", room: "Room 219", unresolvedCheckpoints: 1,
-    incompleteTasks: "Insulin administration interrupted",
-    medicationEvents: "Blood glucose 186 mg/dL at 07:00",
-    notes: "Patient requested breakfast early.",
-    aiSummary: "Insulin dose interrupted. Blood glucose elevated at 186. Patient was requesting food which may have contributed to timing issue. Recommend glucose recheck before insulin administration.",
+    patient_id: "5", patient_name: "Mr. Thompson", room: "219", checkpoint_count: 1, high_risk_count: 0,
+    summary: "Insulin dose interrupted. Blood glucose elevated at 186. Patient was requesting food which may have contributed to timing issue. Recommend glucose recheck before insulin administration.",
   },
 ];
 
@@ -41,6 +33,22 @@ function InfoRow({ label, value }: { label: string; value: string | number }) {
 
 export function ShiftHandoverScreen() {
   const navigation = useNavigation();
+  const [patients, setPatients] = useState<HandoverPatient[]>(fallbackPatients);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await generateHandover();
+      if (data && data.patients.length > 0) {
+        setPatients(data.patients);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const totalCheckpoints = patients.reduce((s, p) => s + p.checkpoint_count, 0);
+  const totalHighRisk = patients.reduce((s, p) => s + p.high_risk_count, 0);
+  const stableCount = patients.filter((p) => p.high_risk_count === 0).length;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -80,33 +88,38 @@ export function ShiftHandoverScreen() {
 
         <View style={s.summaryRow}>
           <View style={[s.summaryBox, { backgroundColor: colors.statusInterruptedBg }]}>
-            <Text style={[s.summaryNum, { color: colors.statusInterruptedText }]}>4</Text>
+            <Text style={[s.summaryNum, { color: colors.statusInterruptedText }]}>{totalCheckpoints}</Text>
             <Text style={[s.summaryLabel, { color: colors.statusInterruptedText }]}>Checkpoints</Text>
           </View>
           <View style={[s.summaryBox, { backgroundColor: colors.statusHighRiskBg }]}>
-            <Text style={[s.summaryNum, { color: colors.statusHighRiskText }]}>3</Text>
-            <Text style={[s.summaryLabel, { color: colors.statusHighRiskText }]}>Incomplete</Text>
+            <Text style={[s.summaryNum, { color: colors.statusHighRiskText }]}>{totalHighRisk}</Text>
+            <Text style={[s.summaryLabel, { color: colors.statusHighRiskText }]}>High Risk</Text>
           </View>
           <View style={[s.summaryBox, { backgroundColor: colors.statusNormalBg }]}>
-            <Text style={[s.summaryNum, { color: colors.statusNormalText }]}>3</Text>
+            <Text style={[s.summaryNum, { color: colors.statusNormalText }]}>{stableCount}</Text>
             <Text style={[s.summaryLabel, { color: colors.statusNormalText }]}>Stable</Text>
           </View>
         </View>
 
-        <View style={{ gap: 16 }}>
-          {handoverPatients.map((p) => (
-            <ExpandableCard key={p.name} title={`${p.name} — ${p.room}`}>
-              <InfoRow label="Unresolved Checkpoints" value={p.unresolvedCheckpoints} />
-              <InfoRow label="Incomplete Tasks" value={p.incompleteTasks} />
-              <InfoRow label="Medication Events" value={p.medicationEvents} />
-              <InfoRow label="Notes" value={p.notes} />
-              <View style={s.aiBox}>
-                <Text style={s.aiLabel}>AI Summary</Text>
-                <Text style={s.aiText}>{p.aiSummary}</Text>
-              </View>
-            </ExpandableCard>
-          ))}
-        </View>
+        {loading ? (
+          <View style={{ alignItems: "center", marginTop: 20 }}>
+            <ActivityIndicator size="large" />
+            <Text style={{ color: colors.mutedForeground, marginTop: 8 }}>Generating summaries...</Text>
+          </View>
+        ) : (
+          <View style={{ gap: 16 }}>
+            {patients.map((p) => (
+              <ExpandableCard key={p.patient_id} title={`${p.patient_name} — Room ${p.room}`}>
+                <InfoRow label="Checkpoints" value={p.checkpoint_count} />
+                <InfoRow label="High Risk" value={p.high_risk_count} />
+                <View style={s.aiBox}>
+                  <Text style={s.aiLabel}>AI Summary</Text>
+                  <Text style={s.aiText}>{p.summary}</Text>
+                </View>
+              </ExpandableCard>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       <View style={s.bottomBar}>

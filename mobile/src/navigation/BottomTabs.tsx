@@ -2,6 +2,9 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "./RootStack";
 import { colors } from "../theme";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { PatientListScreen } from "../screens/PatientListScreen";
@@ -19,8 +22,22 @@ function CheckpointButton({ onPress }: { onPress?: (e?: any) => void }) {
   );
 }
 
+function ScanFAB() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <TouchableOpacity
+      style={styles.scanFab}
+      onPress={() => navigation.navigate("BarcodeScanner")}
+      activeOpacity={0.8}
+    >
+      <Feather name="maximize" size={20} color="#FFF" />
+    </TouchableOpacity>
+  );
+}
+
 export function BottomTabs() {
   return (
+    <View style={{ flex: 1 }}>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -68,6 +85,8 @@ export function BottomTabs() {
         }}
       />
     </Tab.Navigator>
+    <ScanFAB />
+    </View>
   );
 }
 
@@ -92,5 +111,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
+  },
+  scanFab: {
+    position: "absolute",
+    top: 58,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.secondary,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
   },
 });

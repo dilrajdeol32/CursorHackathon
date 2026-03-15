@@ -15,12 +15,13 @@ const levelColors = {
 };
 
 export function RiskCard({ level, details }: RiskCardProps) {
-  const c = levelColors[level];
+  const normalized = (level.charAt(0).toUpperCase() + level.slice(1).toLowerCase()) as "Low" | "Medium" | "High";
+  const c = levelColors[normalized] ?? levelColors["Medium"];
   return (
     <View style={[styles.card, { backgroundColor: c.bg, borderColor: c.border }]}>
       <View style={styles.header}>
         <Feather name="shield" size={22} color={c.text} />
-        <Text style={[styles.title, { color: c.text }]}>Risk Level: {level}</Text>
+        <Text style={[styles.title, { color: c.text }]}>Risk Level: {normalized}</Text>
       </View>
       {details.map((d, i) => (
         <Text key={i} style={[styles.detail, { color: c.text }]}>

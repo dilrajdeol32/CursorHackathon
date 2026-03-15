@@ -10,6 +10,10 @@ testRouter.get("/", (_req: Request, res: Response) => {
 
 /** GET /test/test-db — verifies Supabase connection */
 testRouter.get("/test-db", async (_req: Request, res: Response) => {
+  if (!supabase) {
+    res.status(503).json({ ok: false, error: "Supabase not configured — using in-memory mode" });
+    return;
+  }
   const { error } = await supabase.from("checkpoints").select("id").limit(1);
   if (error) {
     res.status(500).json({ ok: false, error: error.message });

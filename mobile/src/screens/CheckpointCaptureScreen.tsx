@@ -1,26 +1,45 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useAudioRecorder,
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorderState,
+} from "expo-audio";
 import { ValidationField } from "../components/ValidationField";
+import { uploadAudio, saveCheckpoint } from "../api/client";
 import { colors, radius } from "../theme";
 
 const patientNames: Record<string, string> = { "1": "Mr. Patel", "2": "Mrs. Johnson", "3": "Mr. Garcia", "4": "Ms. Chen", "5": "Mr. Thompson", "6": "Mrs. Williams" };
 const patientRooms: Record<string, string> = { "1": "204", "2": "208", "3": "211", "4": "215", "5": "219", "6": "222" };
 
+type ExtractedData = Record<string, string>;
+type ValidationStatus = Record<string, string>;
+
 export function CheckpointCaptureScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const id = (route.params as any)?.id || "1";
+  const id = (route.params as any)?.id ?? null;
 
   const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus | null>(null);
   const [showFields, setShowFields] = useState(false);
-  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const [permGranted, setPermGranted] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const name = patientNames[id] || "Mr. Patel";
-  const room = patientRooms[id] || "204";
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
+
+  const name = id ? (patientNames[id] || "Patient") : null;
+  const room = id ? (patientRooms[id] || null) : null;
 
   useEffect(() => {
     if (!recording) { pulseAnim.stopAnimation(); pulseAnim.setValue(1); return; }
@@ -34,20 +53,118 @@ export function CheckpointCaptureScreen() {
     return () => loop.stop();
   }, [recording]);
 
-  useEffect(() => {
-    if (!recording) return;
-    const words = `${name}, room ${room}, metoprolol 25 milligrams, bed alarm.`.split(" ");
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < words.length) { setTranscript((prev) => (prev ? prev + " " : "") + words[i]); i++; }
-      else { setRecording(false); setShowFields(true); clearInterval(interval); }
-    }, 300);
-    return () => clearInterval(interval);
-  }, [recording, name, room]);
+  const startRecording = async () => {
+    if (!permGranted) {
+      const status = await AudioModule.requestRecordingPermissionsAsync();
+      if (!status.granted) {
+        Alert.alert("Permission required", "Microphone access is needed to record checkpoints.");
+        return;
+      }
+      setPermGranted(true);
+      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
+    }
+
+    setTranscript("");
+    setShowFields(false);
+    setExtractedData(null);
+    setValidationStatus(null);
+
+    try {
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setRecording(true);
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+      Alert.alert("Error", "Could not start recording.");
+    }
+  };
+
+  const stopRecording = async () => {
+    setRecording(false);
+    setProcessing(true);
+
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+
+      if (uri) {
+        const { data, error } = await uploadAudio(uri, id ?? "");
+
+        if (error || !data) {
+          console.warn("Upload failed, using fallback:", error);
+          useFallback();
+          return;
+        }
+
+        setTranscript(data.transcript);
+        setExtractedData(data.structured_data);
+        setValidationStatus(data.validation_status);
+        setShowFields(true);
+      } else {
+        console.warn("No recording URI, using fallback");
+        useFallback();
+      }
+    } catch (err) {
+      console.error("Error processing recording:", err);
+      useFallback();
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const useFallback = () => {
+    const fallbackName = name ?? "Mr. Patel";
+    const fallbackRoom = room ?? "204";
+    const mockTranscript = `${fallbackName}, room ${fallbackRoom}, metoprolol 25 milligrams, bed alarm.`;
+    setTranscript(mockTranscript);
+    setExtractedData({
+      patient_name: fallbackName,
+      room_number: fallbackRoom,
+      medication: "Metoprolol",
+      dosage: "25mg",
+      interruption_type: "Bed Alarm",
+    });
+    setValidationStatus({
+      patient_name: "confirmed",
+      room_number: "confirmed",
+      medication: "confirmed",
+      dosage: "uncertain",
+      interruption_type: "confirmed",
+    });
+    setShowFields(true);
+    setProcessing(false);
+  };
 
   const handleRecord = () => {
-    if (!recording) { setTranscript(""); setShowFields(false); setRecording(true); }
-    else { setRecording(false); setShowFields(true); }
+    if (!recording) startRecording();
+    else stopRecording();
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveCheckpoint({
+        patient_id: id ?? extractedData?.patient_name ?? "unknown",
+        transcript,
+        structured_data: extractedData ?? undefined,
+        validation_status: validationStatus ?? undefined,
+        interruption_type: extractedData?.interruption_type,
+      });
+      navigation.goBack();
+    } catch (err) {
+      console.error("Save failed:", err);
+      Alert.alert("Error", "Could not save checkpoint.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldLabel: Record<string, string> = {
+    patient_name: "Patient",
+    room_number: "Room",
+    medication: "Medication",
+    dosage: "Dosage",
+    interruption_type: "Interruption",
   };
 
   return (
@@ -59,15 +176,30 @@ export function CheckpointCaptureScreen() {
         </TouchableOpacity>
 
         <Text style={s.title}>Save Task Context</Text>
-        <Text style={s.subtitle}>{name} · Room {room}</Text>
+        {name && room ? (
+          <Text style={s.subtitle}>{name} · Room {room}</Text>
+        ) : (
+          <Text style={s.subtitle}>Speak to capture checkpoint details</Text>
+        )}
 
         <View style={s.orbWrap}>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity style={[s.orb, recording && s.orbRecording]} onPress={handleRecord} activeOpacity={0.8}>
-              <Feather name={recording ? "mic-off" : "mic"} size={40} color="#FFF" />
+            <TouchableOpacity
+              style={[s.orb, recording && s.orbRecording]}
+              onPress={handleRecord}
+              activeOpacity={0.8}
+              disabled={processing}
+            >
+              {processing ? (
+                <ActivityIndicator size="large" color="#FFF" />
+              ) : (
+                <Feather name={recording ? "mic-off" : "mic"} size={40} color="#FFF" />
+              )}
             </TouchableOpacity>
           </Animated.View>
-          <Text style={s.orbLabel}>{recording ? "Listening..." : "Tap to record"}</Text>
+          <Text style={s.orbLabel}>
+            {processing ? "Processing..." : recording ? "Listening..." : "Tap to record"}
+          </Text>
         </View>
 
         {transcript ? (
@@ -77,22 +209,29 @@ export function CheckpointCaptureScreen() {
           </View>
         ) : null}
 
-        {showFields && (
+        {showFields && extractedData && validationStatus && (
           <View style={s.card}>
             <Text style={s.cardTitle}>Extracted Fields</Text>
-            <ValidationField label="Patient" value={name} status="confirmed" />
-            <ValidationField label="Room" value={room} status="confirmed" />
-            <ValidationField label="Medication" value="Metoprolol" status="confirmed" />
-            <ValidationField label="Dosage" value="25mg" status="uncertain" />
-            <ValidationField label="Interruption" value="Bed Alarm" status="confirmed" />
+            {Object.keys(fieldLabel).map((key) => (
+              <ValidationField
+                key={key}
+                label={fieldLabel[key]}
+                value={extractedData[key] || "—"}
+                status={validationStatus[key] as any}
+              />
+            ))}
           </View>
         )}
       </ScrollView>
 
       {showFields && (
         <View style={s.bottomBar}>
-          <TouchableOpacity style={s.saveBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-            <Text style={s.saveBtnText}>Save Checkpoint</Text>
+          <TouchableOpacity style={s.saveBtn} onPress={handleSave} activeOpacity={0.8} disabled={saving}>
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={s.saveBtnText}>Save Checkpoint</Text>
+            )}
           </TouchableOpacity>
           <View style={s.bottomRow}>
             <TouchableOpacity style={s.secondaryBtn} activeOpacity={0.7}>

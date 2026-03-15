@@ -1,14 +1,18 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootStack";
 import { RiskCard } from "../components/RiskCard";
+import { getCheckpoints, Checkpoint } from "../api/client";
 import { colors, radius } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const patientNames: Record<string, string> = { "1": "Mr. Patel", "2": "Mrs. Johnson", "3": "Mr. Garcia", "4": "Ms. Chen", "5": "Mr. Thompson", "6": "Mrs. Williams" };
+const patientRooms: Record<string, string> = { "1": "204", "2": "208", "3": "211", "4": "215", "5": "219", "6": "222" };
 
 function SectionCard({ icon, iconBg, iconColor, title, children }: { icon: string; iconBg: string; iconColor: string; title: string; children: React.ReactNode }) {
   return (
@@ -24,8 +28,62 @@ function SectionCard({ icon, iconBg, iconColor, title, children }: { icon: strin
   );
 }
 
+function getMinutesSince(isoDate: string): number {
+  return Math.round((Date.now() - new Date(isoDate).getTime()) / 60000);
+}
+
 export function ResumeTaskScreen() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute();
+  const patientId = (route.params as any)?.id || "1";
+
+  const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    setCheckpoint(null);
+    (async () => {
+      const { data } = await getCheckpoints();
+      if (data && data.length > 0) {
+        const match = data.find((c) => c.patient_id === patientId) ?? data[0];
+        setCheckpoint(match);
+      }
+      setLoading(false);
+    })();
+  }, [patientId]);
+
+  const name = patientNames[patientId] || "Patient";
+  const room = patientRooms[patientId] || "—";
+
+  const sd = checkpoint?.structured_data ?? {};
+  const vs = checkpoint?.validation_status ?? {};
+  const minutesAgo = checkpoint ? getMinutesSince(checkpoint.timestamp) : 0;
+
+  const confirmedItems = Object.entries(vs).filter(([, v]) => v === "confirmed").map(([k]) => k);
+  const uncertainItems = Object.entries(vs).filter(([, v]) => v === "uncertain" || v === "missing").map(([k]) => k);
+
+  const riskLevel = checkpoint?.risk_score ?? "Medium";
+  const riskDetails: string[] = [];
+  if (sd.interruption_type) riskDetails.push(`Interrupted: ${sd.interruption_type}`);
+  riskDetails.push(`${minutesAgo || "< 1"} minutes elapsed`);
+  if (uncertainItems.length > 0) riskDetails.push(`${uncertainItems.length} field(s) uncertain`);
+
+  const labelMap: Record<string, string> = {
+    patient_name: "Patient identity verified",
+    room_number: "Room number confirmed",
+    medication: "Medication order confirmed",
+    dosage: "Dosage verified",
+    interruption_type: "Interruption type recorded",
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[s.safe, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -36,35 +94,53 @@ export function ResumeTaskScreen() {
         </TouchableOpacity>
 
         <View style={s.headerCard}>
-          <Text style={s.headerTitle}>Mr. Patel — Room 204</Text>
-          <Text style={s.headerSub}>Checkpoint saved 8 minutes ago</Text>
+          <Text style={s.headerTitle}>{name} — Room {room}</Text>
+          <Text style={s.headerSub}>
+            {checkpoint ? `Checkpoint saved ${minutesAgo || "< 1"} minutes ago` : "No checkpoint found"}
+          </Text>
         </View>
 
         <SectionCard icon="arrow-right" iconBg="#4A90D91A" iconColor={colors.primary} title="What you were doing">
-          <Text style={s.fieldValue}>Medication administration</Text>
-          <Text style={s.fieldMuted}>Metoprolol 25 mg</Text>
+          <Text style={s.fieldValue}>{sd.medication ? "Medication administration" : "Task context"}</Text>
+          {sd.medication && <Text style={s.fieldMuted}>{sd.medication} {sd.dosage ?? ""}</Text>}
         </SectionCard>
 
-        <SectionCard icon="check-circle" iconBg={colors.statusNormalBg} iconColor={colors.success} title="What is confirmed">
-          <View style={{ gap: 8 }}>
-            <View style={s.checkRow}><Feather name="check-circle" size={16} color={colors.success} /><Text style={s.fieldValue}>Patient identity verified</Text></View>
-            <View style={s.checkRow}><Feather name="check-circle" size={16} color={colors.success} /><Text style={s.fieldValue}>Medication order confirmed</Text></View>
-          </View>
-        </SectionCard>
+        {confirmedItems.length > 0 && (
+          <SectionCard icon="check-circle" iconBg={colors.statusNormalBg} iconColor={colors.success} title="What is confirmed">
+            <View style={{ gap: 8 }}>
+              {confirmedItems.map((key) => (
+                <View key={key} style={s.checkRow}>
+                  <Feather name="check-circle" size={16} color={colors.success} />
+                  <Text style={s.fieldValue}>{labelMap[key] ?? key}</Text>
+                </View>
+              ))}
+            </View>
+          </SectionCard>
+        )}
 
-        <SectionCard icon="alert-triangle" iconBg={colors.statusInterruptedBg} iconColor={colors.warning} title="What is uncertain">
-          <View style={{ gap: 8 }}>
-            <View style={s.checkRow}><Feather name="alert-triangle" size={16} color={colors.warning} /><Text style={{ color: colors.warning }}>Dosage verification recommended</Text></View>
-            <View style={s.checkRow}><Feather name="alert-triangle" size={16} color={colors.warning} /><Text style={{ color: colors.warning }}>Charting status unclear</Text></View>
-          </View>
-        </SectionCard>
+        {uncertainItems.length > 0 && (
+          <SectionCard icon="alert-triangle" iconBg={colors.statusInterruptedBg} iconColor={colors.warning} title="What is uncertain">
+            <View style={{ gap: 8 }}>
+              {uncertainItems.map((key) => (
+                <View key={key} style={s.checkRow}>
+                  <Feather name="alert-triangle" size={16} color={colors.warning} />
+                  <Text style={{ color: colors.warning }}>{labelMap[key] ?? key} — needs verification</Text>
+                </View>
+              ))}
+            </View>
+          </SectionCard>
+        )}
 
         <View style={{ marginBottom: 16 }}>
-          <RiskCard level="Medium" details={["Interrupted during medication workflow", "8 minutes elapsed", "One field uncertain"]} />
+          <RiskCard level={riskLevel} details={riskDetails} />
         </View>
 
         <SectionCard icon="shield" iconBg="#4A90D91A" iconColor={colors.primary} title="Recommended next action">
-          <Text style={s.fieldValue}>Re-verify patient identity and medication before continuing.</Text>
+          <Text style={s.fieldValue}>
+            {uncertainItems.length > 0
+              ? "Re-verify uncertain fields before continuing."
+              : "All fields confirmed. Safe to resume task."}
+          </Text>
         </SectionCard>
       </ScrollView>
 
