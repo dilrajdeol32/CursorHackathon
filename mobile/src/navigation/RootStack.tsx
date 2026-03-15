@@ -26,7 +26,11 @@ export function RootStack() {
       <Stack.Screen name="ResumeTask" component={ResumeTaskScreen} />
       <Stack.Screen name="ShiftHandover" component={ShiftHandoverScreen} />
       <Stack.Screen name="CaptureWithId" component={CheckpointCaptureScreen} />
-      <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+      <Stack.Screen
+        name="BarcodeScanner"
+        component={BarcodeScannerScreen}
+        options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
+      />
     </Stack.Navigator>
   );
 }
