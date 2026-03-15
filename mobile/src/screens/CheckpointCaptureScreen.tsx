@@ -12,6 +12,7 @@ import {
 } from "expo-audio";
 import { ValidationField } from "../components/ValidationField";
 import { uploadAudio, saveCheckpoint } from "../api/client";
+import { useSession } from "../context/SessionContext";
 import { colors, radius } from "../theme";
 
 const patientNames: Record<string, string> = { "1": "Mr. Patel", "2": "Mrs. Johnson", "3": "Mr. Garcia", "4": "Ms. Chen", "5": "Mr. Thompson", "6": "Mrs. Williams" };
@@ -24,6 +25,7 @@ export function CheckpointCaptureScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const id = (route.params as any)?.id ?? null;
+  const { recordMedication, activePatientId } = useSession();
 
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -144,12 +146,21 @@ export function CheckpointCaptureScreen() {
     setSaving(true);
     try {
       await saveCheckpoint({
-        patient_id: id ?? extractedData?.patient_name ?? "unknown",
+        patient_id: id ?? activePatientId ?? extractedData?.patient_name ?? "unknown",
         transcript,
         structured_data: extractedData ?? undefined,
         validation_status: validationStatus ?? undefined,
         interruption_type: extractedData?.interruption_type,
       });
+
+      const patientId = id ?? activePatientId ?? extractedData?.patient_name ?? "unknown";
+      if (
+        validationStatus?.medication === "confirmed" &&
+        extractedData?.medication
+      ) {
+        recordMedication(patientId, extractedData.medication, extractedData.dosage ?? "");
+      }
+
       navigation.goBack();
     } catch (err) {
       console.error("Save failed:", err);

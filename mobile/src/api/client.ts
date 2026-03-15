@@ -1,8 +1,27 @@
 import { API_BASE_URL } from "../config/api";
 
-async function request<T>(path: string, options?: RequestInit): Promise<{ data: T | null; error: string | null }> {
+// Optional token injected at runtime so all protected requests automatically
+// carry Authorization headers once the user is signed in.
+let _authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+}
+
+async function request<T>(
+  path: string,
+  options?: RequestInit & { token?: string }
+): Promise<{ data: T | null; error: string | null }> {
   try {
-    const res = await fetch(`${API_BASE_URL}${path}`, options);
+    const token = options?.token ?? _authToken;
+    const headers: Record<string, string> = {
+      ...(options?.headers as Record<string, string>),
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       return { data: null, error: (body as any).error ?? `HTTP ${res.status}` };
@@ -129,4 +148,23 @@ export function generateHandover(patientIds?: string[]) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ patient_ids: patientIds }),
   });
+}
+
+// --- Auth API ---
+
+export type LoginResponse = {
+  user: { id: string; email: string };
+  session: { access_token: string; refresh_token: string; expires_at: number };
+};
+
+export function login(email: string, password: string) {
+  return request<LoginResponse>("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function getMe(token: string) {
+  return request<{ nurse_id: string; email: string }>("/auth/me", { token });
 }

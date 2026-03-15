@@ -51,7 +51,7 @@ export function PatientContextScreen() {
   const route = useRoute<Route>();
   const id = route.params?.id || "1";
   const patient = patientData[id] || patientData["1"];
-  const { activePatientId, completedTaskIds } = useSession();
+  const { activePatientId, completedTaskIds, medicationEvents } = useSession();
 
   const isInSession = activePatientId === id;
   const isCompleted = completedTaskIds.includes(id);
@@ -61,6 +61,17 @@ export function PatientContextScreen() {
     : isInSession
     ? "In Session — Currently Active"
     : patient.currentTask.status;
+
+  const medEvent = medicationEvents[id];
+  const medication = { ...patient.medication };
+  if (medEvent) {
+    if (medEvent.medication) medication.name = medEvent.medication;
+    if (medEvent.dosage) medication.dose = medEvent.dosage;
+    const d = new Date(medEvent.timestamp);
+    const hh = d.getHours().toString().padStart(2, "0");
+    const mm = d.getMinutes().toString().padStart(2, "0");
+    medication.lastGiven = `Today ${hh}:${mm}`;
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -93,11 +104,16 @@ export function PatientContextScreen() {
           </ExpandableCard>
 
           <ExpandableCard title="Medication Context" icon={<Feather name="disc" size={20} color={colors.primary} />}>
-            <VitalRow label="Medication" value={patient.medication.name} />
-            <VitalRow label="Dose" value={patient.medication.dose} />
-            <VitalRow label="Route" value={patient.medication.route} />
-            <VitalRow label="Frequency" value={patient.medication.frequency} />
-            <VitalRow label="Last Given" value={patient.medication.lastGiven} />
+            <VitalRow label="Medication" value={medication.name} />
+            <VitalRow label="Dose" value={medication.dose} />
+            <VitalRow label="Route" value={medication.route} />
+            <VitalRow label="Frequency" value={medication.frequency} />
+            <VitalRow label="Last Given" value={medication.lastGiven} />
+            {medEvent && (
+              <Text style={{ color: colors.success, fontSize: 12, marginTop: 6 }}>
+                Updated from checkpoint
+              </Text>
+            )}
           </ExpandableCard>
 
           <ExpandableCard title="Recent Vitals" icon={<Feather name="activity" size={20} color={colors.primary} />}>

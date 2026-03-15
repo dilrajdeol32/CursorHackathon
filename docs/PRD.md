@@ -13,11 +13,14 @@ Important constraints:
 
 # Tech Stack
 
-Frontend
+Frontend (mobile)
 - React Native with Expo
 - TypeScript
-- React Navigation
-- Zustand for state
+- React Navigation (native stack + bottom tabs)
+- Lightweight in-app state via React Context (`SessionContext` for active session + completed tasks)
+
+Frontend (web)
+- React + Vite (reference UI, not primary demo surface)
 
 Backend
 - Node.js
@@ -25,19 +28,19 @@ Backend
 - TypeScript
 
 Database
-- Supabase Postgres
+- Supabase Postgres (optional for demo; app can run in in-memory fallback mode when credentials/tables are missing)
 
 Speech to Text
-- Deepgram API
+- Deepgram API (REST)
 
 AI Extraction
-- GEMINI API
+- GEMINI API (JSON-structured extraction + summaries, with deterministic JSON schema)
 
 Charts / analytics
-- Recharts
+- React Native charting library (for interruption analytics)
 
 Mock data
-- Local JSON dataset
+- Local JSON dataset (patients and demo checkpoints)
 
 ---
 
@@ -125,7 +128,7 @@ Requirement
 - Record short voice message.
 
 Implementation
-- Expo Audio API
+- Expo Audio API (via `expo-audio` in the final implementation)
 
 Audio format
 - WAV
@@ -142,7 +145,7 @@ Requirement
 - Convert voice recording to text.
 
 Implementation
-- Deepgram API
+- Deepgram API (server-side REST call)
 
 Flow
 mobile → backend → deepgram
@@ -161,7 +164,7 @@ Requirement
 - Convert transcript into structured fields.
 
 Implementation
-- GEMINI API
+- GEMINI API (server-side call with strict JSON schema and defensive parsing fallback when API is unavailable)
 
 Output format must be strict JSON.
 
@@ -185,6 +188,12 @@ Validation checks
 - medication exists
 - dosage present
 
+Fallback behavior
+- When external services or the database are unavailable, the system falls back to:
+  - local mock patient dataset
+  - a heuristic parser for medication/dosage
+  - in-memory checkpoint storage
+
 Status labels
 - confirmed
 - uncertain
@@ -198,7 +207,7 @@ Requirement
 - Save checkpoint data for later retrieval.
 
 Database
-- Supabase Postgres
+- Supabase Postgres (with in-memory fallback when Supabase is not configured)
 
 Checkpoint table fields
 - id
@@ -232,6 +241,11 @@ System provides
 Example
 "Re-verify patient identity before administering medication."
 
+Additional requirement
+- The system must keep track of which patient/task is currently “in session” so that:
+  - the dashboard can show an *Active Session* banner
+  - patient lists and task lists reflect *In Session* or *Completed* status based on recent actions
+
 ---
 
 # Feature 11 — Risk Score
@@ -262,7 +276,7 @@ Inputs
 - interruption history
 
 Implementation
-- GEMINI API summary generation
+- GEMINI API summary generation (with a deterministic fallback summary when the API is unavailable)
 
 Output
 - short handover text
@@ -282,3 +296,51 @@ Data logged
 
 Visualization
 - charts showing interruptions per hour
+
+---
+
+# Feature 14 — Patient Identification via QR Wristband (Mobile)
+
+Requirement
+- Nurse can scan a patient’s wristband (QR code) from any screen to jump into that patient’s context.
+
+Implementation
+- Use `expo-camera` with barcode scanning enabled.
+- Add a global floating action button available from all main tabs to open the scanner.
+- Parse QR payload (e.g., patient_id, name, room_number) and map it to the app’s internal mock patient IDs.
+
+Flow
+1. Nurse taps global Scan button.
+2. Camera view opens with QR scanner.
+3. On successful scan:
+   - parse QR payload into `{ patient_id, name?, room_number? }`
+   - resolve to internal app patient ID via mapping rules
+   - navigate to `PatientContext` for that patient
+
+Simulator behavior
+- Because the iOS simulator has no real camera, provide “Demo scan” buttons that simulate scanning real wristbands.
+
+---
+
+# Feature 15 — Session & Task State (Mobile)
+
+Requirement
+- The system should reflect which patient the nurse is currently working with, and which tasks have been completed during the shift.
+
+Implementation
+- Frontend-only session state using React Context (`SessionContext`):
+  - `activePatientId`, `activePatientName`
+  - `completedTaskIds`
+- “Resume Task” flow:
+  - When the nurse taps **Resume Safely**, the app records the active patient in session state and returns to the dashboard.
+- “Mark Verified” flow:
+  - When the nurse taps **Mark Verified**, the app records the task as completed, clears the active session, and updates dashboard + task views.
+
+UI impact
+- Dashboard:
+  - shows an “Active Session” banner when a patient is in session
+  - shows a “Tasks Completed” banner listing completed patients
+- Patients list:
+  - status chip shows “In Session” or “Completed” in addition to the baseline status (normal/interrupted/high-risk)
+- Tasks list:
+  - tasks that are in session or completed are visually distinguished (icon, text decoration, opacity)

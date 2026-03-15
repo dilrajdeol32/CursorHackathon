@@ -17,19 +17,19 @@
 - [x] Add GET /patients/:id endpoint
 
 ## Checkpoints
-- [ ] Create checkpoint schema/table
-- [ ] Add POST /checkpoints endpoint
-- [ ] Add GET /checkpoints endpoint
+- [x] Create checkpoint schema/table (Supabase) and in-memory fallback
+- [x] Add POST /checkpoints endpoint with Supabase + in-memory fallback
+- [x] Add GET /checkpoints endpoint with Supabase + in-memory fallback
 
 ## Voice Pipeline
-- [ ] Add audio upload endpoint
-- [ ] Integrate Deepgram transcription
-- [ ] Integrate OpenAI structured extraction
-- [ ] Add validation against mock patient data
+- [x] Add audio upload endpoint (`POST /audio`) using `multer` for file handling
+- [x] Integrate Deepgram transcription via REST API (with graceful fallback when API key is missing)
+- [x] Integrate GEMINI structured extraction (with strict JSON schema and heuristic fallback parser)
+- [x] Add validation against mock patient data (patients JSON)
 
 ## Resume
-- [ ] Add resume endpoint
-- [ ] Add risk score calculation
+- [x] Add resume behavior via checkpoint retrieval endpoints
+- [x] Add risk score calculation utility used when saving checkpoints
 
 ## Handover
-- [ ] Add handover summary generation endpoint
+- [x] Add handover summary generation endpoint (`POST /handover`) using GEMINI (with fallback summary when API is unavailable)

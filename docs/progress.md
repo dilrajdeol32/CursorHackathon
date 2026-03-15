@@ -8,9 +8,17 @@
 
 - **Mock Patients**: Created `src/mock-data/patients.json` with 4 demo patients (Maria Santos, James Chen, Patricia Okonkwo, Robert Williams), each with room number, allergies, medications, and latest vitals. Added `GET /patients` and `GET /patients/:id` endpoints in `src/routes/patients.ts`.
 
-- **Supabase Client**: Created `src/lib/supabase.ts` with singleton Supabase client. Made initialization safe — server starts gracefully even when Supabase credentials are not configured (returns 503 on auth-dependent routes). Verified database connection via `GET /test/test-db`.
+- **Supabase Client & Fallback Mode**: Created `src/lib/supabase.ts` with a singleton Supabase client and robust safety checks. When Supabase URL/key are missing or placeholder, the app runs in **demo mode** using in-memory structures instead of failing on startup. Supabase-dependent routes either return `503` (for auth/test routes) or transparently fall back to in-memory storage (for checkpoints/handover).
 
-- **Auth (nurse login)**: Connected Supabase Auth; added `POST /auth/login` (email + password), `GET /auth/me` (protected); added auth middleware that validates `Authorization: Bearer <access_token>` and attaches `req.user`. Created `src/routes/auth.ts`, `src/middleware/auth.ts`, and `src/types/express.d.ts`.
+- **Auth (nurse login)**: Connected Supabase Auth; added `POST /auth/login` (email + password), `GET /auth/me` (protected); added auth middleware that validates `Authorization: Bearer <access_token>` and attaches `req.user`. Created `src/routes/auth.ts`, `src/middleware/auth.ts`, and `src/types/express.d.ts`. In demo mode, auth middleware is effectively bypassed so the app can function without Supabase.
+
+- **Checkpoints API**: Implemented full checkpoint API in `src/routes/checkpoints.ts` with `POST /checkpoints`, `GET /checkpoints`, and `GET /checkpoints/:id`. Uses Supabase when configured, otherwise an in-memory store.
+
+- **Audio / Voice Pipeline API**: Implemented `POST /audio` in `src/routes/audio.ts` with audio upload via `multer`, Deepgram REST transcription (when configured), GEMINI structured extraction (when configured), a heuristic fallback parser, and validation against `patients.json` producing `confirmed` / `uncertain` / `missing` statuses.
+
+- **Risk Score Logic**: Implemented `computeRiskScore` helper used when saving checkpoints; normalizes to `LOW` / `MEDIUM` / `HIGH` based on time since checkpoint, interruption type, and count of uncertain/missing fields.
+
+- **Shift Handover API**: Implemented `POST /handover` in `src/routes/handover.ts` that aggregates checkpoints per patient and returns per-patient summaries using GEMINI when available or a deterministic fallback summary otherwise.
 
 ---
 

@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootStack";
 import { useSession } from "../context/SessionContext";
+import { useAuth } from "../context/AuthContext";
 import { colors, radius } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -22,7 +23,9 @@ const patientRooms: Record<string, string> = { "1": "204", "2": "208", "3": "211
 
 export function DashboardScreen() {
   const navigation = useNavigation<Nav>();
-  const { activePatientId, activePatientName, completedTaskIds } = useSession();
+  const { activePatientId, activePatientName, completedTaskIds, clearSession } = useSession();
+  const { user } = useAuth();
+
   const handlePress = (card: typeof cards[0]) => {
     if (card.nav) {
       navigation.navigate(card.nav as any);
@@ -39,7 +42,9 @@ export function DashboardScreen() {
             <Feather name="sun" size={18} color={colors.warning} />
             <Text style={styles.morningText}>Good Morning</Text>
           </View>
-          <Text style={styles.hello}>Hello, Sarah</Text>
+          <Text style={styles.hello}>
+            {user?.email ? user.email.split("@")[0] : "Sarah"}
+          </Text>
           <View style={styles.shiftRow}>
             <Feather name="clock" size={14} color={colors.mutedForeground} />
             <Text style={styles.shiftText}>Day Shift</Text>

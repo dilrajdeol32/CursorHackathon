@@ -37,7 +37,7 @@ export function ResumeTaskScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute();
   const patientId = (route.params as any)?.id || "1";
-  const { startSession, completeTask } = useSession();
+  const { startSession, completeTask, recordMedication } = useSession();
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null);
   const [loading, setLoading] = useState(true);
@@ -160,6 +160,9 @@ export function ResumeTaskScreen() {
             onPress={() => {
               setVerified(true);
               completeTask(patientId);
+              if (vs.medication === "confirmed" && sd.medication) {
+                recordMedication(patientId, sd.medication, sd.dosage ?? "");
+              }
               Alert.alert("Task Completed", `${name}'s task has been marked as verified and completed.`, [
                 { text: "Back to Dashboard", onPress: () => navigation.navigate("Tabs" as any) },
               ]);
