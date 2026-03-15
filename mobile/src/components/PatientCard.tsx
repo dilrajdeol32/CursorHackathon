@@ -9,7 +9,7 @@ export interface Patient {
   name: string;
   room: string;
   activeTask: string;
-  status: "normal" | "interrupted" | "high-risk";
+  status: "normal" | "interrupted" | "high-risk" | "in-session" | "completed";
   checkpointTime: string;
   allergy?: string;
 }

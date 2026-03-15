@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootStack";
 import { StatusChip } from "../components/StatusChip";
+import { useSession } from "../context/SessionContext";
 import { colors, radius } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -26,12 +27,24 @@ const tasks = [
 
 export function TasksScreen() {
   const navigation = useNavigation<Nav>();
+  const { activePatientId, completedTaskIds } = useSession();
+
+  const remaining = tasks.filter((t) => !completedTaskIds.includes(t.patientId)).length;
+
+  const getEffectiveStatus = (t: typeof tasks[0]) => {
+    if (activePatientId === t.patientId) return "in-session" as const;
+    if (completedTaskIds.includes(t.patientId)) return "completed" as const;
+    return t.status;
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.title}>Active Tasks</Text>
-        <Text style={styles.subtitle}>4 tasks remaining</Text>
+        <Text style={styles.subtitle}>
+          {remaining} task{remaining !== 1 ? "s" : ""} remaining
+          {completedTaskIds.length > 0 ? ` · ${completedTaskIds.length} completed` : ""}
+        </Text>
       </View>
 
       <FlatList
@@ -39,28 +52,32 @@ export function TasksScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate("PatientContext", { id: item.patientId })}
-            activeOpacity={0.7}
-          >
-            <View style={styles.iconBox}>
-              <Feather name={iconMap[item.icon] || "circle"} size={20} color={colors.primary} />
-            </View>
-            <View style={styles.content}>
-              <Text style={styles.taskName}>{item.task}</Text>
-              <Text style={styles.patientInfo}>{item.patient} · {item.room}</Text>
-              <View style={styles.bottomRow}>
-                <StatusChip status={item.status} />
-                <View style={styles.timeRow}>
-                  <Feather name="clock" size={14} color={colors.mutedForeground} />
-                  <Text style={styles.timeText}>{item.time}</Text>
+        renderItem={({ item }) => {
+          const status = getEffectiveStatus(item);
+          const isDone = status === "completed";
+          return (
+            <TouchableOpacity
+              style={[styles.card, isDone && { opacity: 0.6 }]}
+              onPress={() => navigation.navigate("PatientContext", { id: item.patientId })}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconBox, isDone && { backgroundColor: colors.statusNormalBg }]}>
+                <Feather name={isDone ? "check" : (iconMap[item.icon] || "circle")} size={20} color={isDone ? colors.success : colors.primary} />
+              </View>
+              <View style={styles.content}>
+                <Text style={[styles.taskName, isDone && { textDecorationLine: "line-through", color: colors.mutedForeground }]}>{item.task}</Text>
+                <Text style={styles.patientInfo}>{item.patient} · {item.room}</Text>
+                <View style={styles.bottomRow}>
+                  <StatusChip status={status} />
+                  <View style={styles.timeRow}>
+                    <Feather name="clock" size={14} color={colors.mutedForeground} />
+                    <Text style={styles.timeText}>{item.time}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
+            </TouchableOpacity>
+          );
+        }}
       />
     </SafeAreaView>
   );

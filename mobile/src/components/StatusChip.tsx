@@ -2,12 +2,14 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { colors } from "../theme";
 
-type ChipStatus = "normal" | "interrupted" | "high-risk";
+type ChipStatus = "normal" | "interrupted" | "high-risk" | "in-session" | "completed";
 
 const statusConfig: Record<ChipStatus, { bg: string; text: string; label: string }> = {
   normal: { bg: colors.statusNormalBg, text: colors.statusNormalText, label: "Normal" },
   interrupted: { bg: colors.statusInterruptedBg, text: colors.statusInterruptedText, label: "Interrupted" },
   "high-risk": { bg: colors.statusHighRiskBg, text: colors.statusHighRiskText, label: "High Risk" },
+  "in-session": { bg: "#E3F2FD", text: "#1565C0", label: "In Session" },
+  completed: { bg: colors.statusNormalBg, text: colors.success, label: "Completed" },
 };
 
 interface StatusChipProps {
@@ -16,7 +18,7 @@ interface StatusChipProps {
 }
 
 export function StatusChip({ status, label }: StatusChipProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? statusConfig.normal;
   return (
     <View style={[styles.chip, { backgroundColor: config.bg }]}>
       <View style={[styles.dot, { backgroundColor: config.text }]} />

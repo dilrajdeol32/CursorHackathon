@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootStack";
 import { RiskCard } from "../components/RiskCard";
 import { getCheckpoints, Checkpoint } from "../api/client";
+import { useSession } from "../context/SessionContext";
 import { colors, radius } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -36,9 +37,11 @@ export function ResumeTaskScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute();
   const patientId = (route.params as any)?.id || "1";
+  const { startSession, completeTask } = useSession();
 
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null);
   const [loading, setLoading] = useState(true);
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -145,14 +148,36 @@ export function ResumeTaskScreen() {
       </ScrollView>
 
       <View style={s.bottomBar}>
-        <TouchableOpacity style={s.resumeBtn} onPress={() => navigation.navigate("Tabs" as any)} activeOpacity={0.8}>
+        <TouchableOpacity style={s.resumeBtn} onPress={() => {
+          startSession(patientId, name);
+          navigation.navigate("Tabs" as any);
+        }} activeOpacity={0.8}>
           <Text style={s.resumeBtnText}>Resume Safely</Text>
         </TouchableOpacity>
         <View style={s.bottomRow}>
-          <TouchableOpacity style={[s.bottomSmallBtn, { backgroundColor: colors.primary }]} activeOpacity={0.8}>
-            <Text style={s.bottomSmallBtnText}>Mark Verified</Text>
+          <TouchableOpacity
+            style={[s.bottomSmallBtn, { backgroundColor: verified ? colors.success : colors.primary }]}
+            onPress={() => {
+              setVerified(true);
+              completeTask(patientId);
+              Alert.alert("Task Completed", `${name}'s task has been marked as verified and completed.`, [
+                { text: "Back to Dashboard", onPress: () => navigation.navigate("Tabs" as any) },
+              ]);
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name={verified ? "check" : "shield"} size={14} color="#FFF" style={{ marginRight: 4 }} />
+            <Text style={s.bottomSmallBtnText}>{verified ? "Verified ✓" : "Mark Verified"}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[s.bottomSmallBtn, { backgroundColor: colors.destructive }]} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[s.bottomSmallBtn, { backgroundColor: colors.destructive }]}
+            onPress={() => {
+              Alert.alert("Escalated", `${name}'s case has been escalated for review.`, [
+                { text: "OK" },
+              ]);
+            }}
+            activeOpacity={0.8}
+          >
             <Text style={s.bottomSmallBtnText}>Escalate</Text>
           </TouchableOpacity>
         </View>

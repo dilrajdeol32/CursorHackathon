@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootStack";
 import { ExpandableCard } from "../components/ExpandableCard";
 import { StatusChip } from "../components/StatusChip";
+import { useSession } from "../context/SessionContext";
 import { colors, radius } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -50,6 +51,16 @@ export function PatientContextScreen() {
   const route = useRoute<Route>();
   const id = route.params?.id || "1";
   const patient = patientData[id] || patientData["1"];
+  const { activePatientId, completedTaskIds } = useSession();
+
+  const isInSession = activePatientId === id;
+  const isCompleted = completedTaskIds.includes(id);
+  const displayStatus = isInSession ? "in-session" : isCompleted ? "completed" : patient.status;
+  const taskStatusText = isCompleted
+    ? "Completed ✓"
+    : isInSession
+    ? "In Session — Currently Active"
+    : patient.currentTask.status;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -64,7 +75,7 @@ export function PatientContextScreen() {
             <Text style={s.name}>{patient.name}</Text>
             <Text style={s.room}>{patient.room}</Text>
           </View>
-          <StatusChip status={patient.status} />
+          <StatusChip status={displayStatus} />
         </View>
 
         {patient.allergy && (
@@ -78,7 +89,7 @@ export function PatientContextScreen() {
           <ExpandableCard title="Current Task" icon={<Feather name="check-square" size={20} color={colors.primary} />} defaultExpanded>
             <Text style={s.fieldValue}>{patient.currentTask.title}</Text>
             <Text style={s.fieldMuted}>{patient.currentTask.details}</Text>
-            <Text style={{ color: colors.warning, marginTop: 4 }}>{patient.currentTask.status}</Text>
+            <Text style={{ color: isCompleted ? colors.success : isInSession ? colors.primary : colors.warning, marginTop: 4 }}>{taskStatusText}</Text>
           </ExpandableCard>
 
           <ExpandableCard title="Medication Context" icon={<Feather name="disc" size={20} color={colors.primary} />}>
@@ -110,7 +121,11 @@ export function PatientContextScreen() {
       </ScrollView>
 
       <View style={s.bottomBar}>
-        {patient.hasCheckpoint ? (
+        {isCompleted ? (
+          <View style={[s.actionBtn, { backgroundColor: colors.success }]}>
+            <Text style={s.actionBtnText}>Task Completed ✓</Text>
+          </View>
+        ) : patient.hasCheckpoint ? (
           <TouchableOpacity style={[s.actionBtn, { backgroundColor: colors.secondary }]} onPress={() => navigation.navigate("ResumeTask", { id })} activeOpacity={0.8}>
             <Text style={s.actionBtnText}>Resume Task</Text>
           </TouchableOpacity>

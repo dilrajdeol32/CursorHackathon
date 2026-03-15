@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootStack";
 import { PatientCard, Patient } from "../components/PatientCard";
+import { useSession } from "../context/SessionContext";
 import { colors } from "../theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -22,10 +23,17 @@ const patients: Patient[] = [
 export function PatientListScreen() {
   const navigation = useNavigation<Nav>();
   const [search, setSearch] = useState("");
+  const { activePatientId, completedTaskIds } = useSession();
 
   const filtered = patients.filter(
     (p) => p.name.toLowerCase().includes(search.toLowerCase()) || p.room.toLowerCase().includes(search.toLowerCase())
   );
+
+  const getEffectiveStatus = (p: Patient): Patient["status"] => {
+    if (activePatientId === p.id) return "in-session" as any;
+    if (completedTaskIds.includes(p.id)) return "completed" as any;
+    return p.status;
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -52,7 +60,7 @@ export function PatientListScreen() {
         ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
         renderItem={({ item }) => (
           <PatientCard
-            patient={item}
+            patient={{ ...item, status: getEffectiveStatus(item) }}
             onPress={() => navigation.navigate("PatientContext", { id: item.id })}
           />
         )}
