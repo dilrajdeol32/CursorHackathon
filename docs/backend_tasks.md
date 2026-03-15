@@ -7,9 +7,9 @@
 - [x] Add environment variable support
 
 ## Auth
-- [ ] Connect Supabase Auth
-- [ ] Add login endpoint
-- [ ] Add auth middleware
+- [x] Connect Supabase Auth
+- [x] Add login endpoint
+- [x] Add auth middleware
 
 ## Mock Patients
 - [x] Create mock patients JSON file

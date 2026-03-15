@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
+import { authRouter } from "./routes/auth.js";
 import { patientsRouter } from "./routes/patients.js";
 import testRouter from "./routes/test.js";
 
@@ -16,6 +17,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
+app.use("/auth", authRouter);
 app.use("/patients", patientsRouter);
 app.use("/test", testRouter);
 
