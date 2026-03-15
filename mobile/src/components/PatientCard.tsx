@@ -12,6 +12,7 @@ export interface Patient {
   status: "normal" | "interrupted" | "high-risk";
   checkpointTime: string;
   allergy?: string;
+  barcode?: string;
 }
 
 interface PatientCardProps {

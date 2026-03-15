@@ -5,6 +5,7 @@ import { PatientContextScreen } from "../screens/PatientContextScreen";
 import { ResumeTaskScreen } from "../screens/ResumeTaskScreen";
 import { ShiftHandoverScreen } from "../screens/ShiftHandoverScreen";
 import { CheckpointCaptureScreen } from "../screens/CheckpointCaptureScreen";
+import { BarcodeScannerScreen } from "../screens/BarcodeScannerScreen";
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -12,6 +13,7 @@ export type RootStackParamList = {
   ResumeTask: { id: string };
   ShiftHandover: undefined;
   CaptureWithId: { id: string };
+  BarcodeScanner: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -24,6 +26,11 @@ export function RootStack() {
       <Stack.Screen name="ResumeTask" component={ResumeTaskScreen} />
       <Stack.Screen name="ShiftHandover" component={ShiftHandoverScreen} />
       <Stack.Screen name="CaptureWithId" component={CheckpointCaptureScreen} />
+      <Stack.Screen
+        name="BarcodeScanner"
+        component={BarcodeScannerScreen}
+        options={{ presentation: "fullScreenModal", animation: "slide_from_bottom" }}
+      />
     </Stack.Navigator>
   );
 }
