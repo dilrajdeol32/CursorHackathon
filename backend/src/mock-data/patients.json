@@ -1,0 +1,58 @@
+[
+  {
+    "patient_id": "P001",
+    "name": "Maria Santos",
+    "room_number": "204",
+    "allergies": ["Penicillin", "Latex"],
+    "medications": ["Metoprolol 25 mg PO BID", "Lisinopril 10 mg PO daily", "Aspirin 81 mg PO daily"],
+    "latest_vitals": {
+      "blood_pressure": "128/82",
+      "heart_rate": 72,
+      "temp_c": 36.8,
+      "resp_rate": 16,
+      "spo2": 98
+    }
+  },
+  {
+    "patient_id": "P002",
+    "name": "James Chen",
+    "room_number": "311",
+    "allergies": ["Sulfa", "Peanuts"],
+    "medications": ["Insulin sliding scale", "Metformin 500 mg PO BID", "Gabapentin 300 mg PO TID"],
+    "latest_vitals": {
+      "blood_pressure": "142/88",
+      "heart_rate": 78,
+      "temp_c": 36.6,
+      "resp_rate": 18,
+      "spo2": 96
+    }
+  },
+  {
+    "patient_id": "P003",
+    "name": "Patricia Okonkwo",
+    "room_number": "118",
+    "allergies": ["Codeine"],
+    "medications": ["Amoxicillin 500 mg PO TID", "Acetaminophen 650 mg PRN", "IV NS at 75 mL/hr"],
+    "latest_vitals": {
+      "blood_pressure": "118/76",
+      "heart_rate": 84,
+      "temp_c": 37.2,
+      "resp_rate": 14,
+      "spo2": 99
+    }
+  },
+  {
+    "patient_id": "P004",
+    "name": "Robert Williams",
+    "room_number": "205",
+    "allergies": ["Iodine contrast", "Shellfish"],
+    "medications": ["Warfarin 5 mg PO daily", "Furosemide 40 mg PO BID", "Potassium chloride 20 mEq PO BID"],
+    "latest_vitals": {
+      "blood_pressure": "135/85",
+      "heart_rate": 68,
+      "temp_c": 36.4,
+      "resp_rate": 12,
+      "spo2": 97
+    }
+  }
+]
